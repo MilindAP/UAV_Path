@@ -34,6 +34,7 @@ steps = []
 class GridWorld(Env):
     def __init__(self, number_of_robots, number_of_interestpoints, dim, observation_size):
         super(GridWorld, self).__init__()
+        self.observation_shape = observation_size
 
         # Hyperparameters
         self.alpha = 0.3
@@ -66,7 +67,7 @@ class GridWorld(Env):
         for i in range(number_of_robots):
             position = np.array([random.randint(0, self.dim - 1),
                                  random.randint(0, self.dim - 1)])
-            self.robot.append(Robot(i, position, self.dim))
+            self.robots.append(Robot(i, position, self.dim))
             print('Robot ID = {}: Robot Starting Position = [{}, {}]'.format(
                 i, position[0], position[1]))
 
@@ -83,7 +84,7 @@ class GridWorld(Env):
         self.number_of_actions = 4
         self.list_of_actions = {0: 'up', 1: 'down', 2: 'left', 3: 'right'}
 
-        state_space_size = ((self.dim*self.dim)**self.number_of_robots)((2*(self.dim*self.dim))**self.number_of_interestpoints)
+        state_space_size = ((self.dim*self.dim)**self.number_of_robots)*((2*(self.dim*self.dim))**self.number_of_interestpoints)
         self.action_space_size = self.number_of_actions**self.number_of_robots
         self.state_visits = np.zeros(state_space_size)
 
@@ -159,17 +160,17 @@ class GridWorld(Env):
                 self.is_interestpoint[tuple(interestpoint.position)] = True
 
         for robot in self.robots:
-            if not self.is_occupied[tuple(robot.position)]:
+            if self.is_occupied[tuple(robot.position)]:
                 reward -= 10
             elif self.is_interestpoint[tuple(robot.position)]:
                 reward += 20
-            elif self.robot.boundary:
+            elif robot.boundary:
                 reward -= 10
                 robot.boundary = False
             else:
                 reward -= 1
 
-            self.is_occpied[tuple(robot.position)] = True
+            self.is_occupied[tuple(robot.position)] = True
 
         self.reward = reward
 
@@ -370,7 +371,7 @@ class GridWorld(Env):
         movie_maker()
 
     def visualize(self, filename):
-        filehandler = open(filename, 'rb');
+        filehandler = open(filename, 'rb')
         while True:
             try:
                 [episode, instant, robots, interestpoints] = pickle.load(filehandler)
@@ -392,6 +393,10 @@ class GridWorld(Env):
                 print('Failed to delete %s.  Reason: %s' % (file_path, e))
 
 
+def clamp(n, minn, maxn):
+    return max(min(maxn, n), minn)
+
+
 class Point(object):
     def __init__(self, name, position, dim):
         self.name = name
@@ -400,7 +405,7 @@ class Point(object):
 
     def set_position(self, position):
         temp_x, temp_y = position
-        x_min, x_max, y_min, y_max = [0, self.dim - 1, 0, self.dim - 1]
+        x_min, x_max, y_min, y_max = [0, self.dim-1, 0, self.dim-1]
         x = self.clamp(temp_x, x_min, x_max)
         y = self.clamp(temp_y, y_min, y_max)
         self.position = np.array([x, y])
@@ -489,15 +494,16 @@ class Network(nn.Module, GridWorld):
 
         in_features = int(observation_size)
 
-        self.conv1 = nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1)
-        self.poo11 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
-        self.conv1 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
-        self.poo12 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1)
+        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
+        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
 
-        self.fc1 = nn.Linear(32 * 8 * 8, 512)
-        self.fc2 = nn.Linear(512, 1)
+        self.fc1 = nn.Linear(32 * 8 * 8, 32)
+        self.fc2 = nn.Linear(512, action_space_size)
 
     def forward(self, x):
+
         x = nn.functional.relu(self.conv1(x.float()))
         x = self.pool1(x)
         x = nn.functional.relu(self.conv2(x))
@@ -507,6 +513,17 @@ class Network(nn.Module, GridWorld):
         x = self.fc2(x.float())
 
         return x
+
+    # def forward(self, x):
+    #     x = nn.functional.relu(self.conv1(x.float()))
+    #     x = self.pool1(x)
+    #     x = nn.functional.relu(self.conv2(x))
+    #     x = self.pool2(x)
+    #     x = x.view(x.size(0), -1)  # flatten the tensor
+    #     x = nn.functional.relu(self.fc1(x))
+    #     x = self.fc2(x.float())
+    #
+    #     return x
 
     def act(self, obs):
         if torch.cuda.is_available():
