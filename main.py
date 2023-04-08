@@ -13,7 +13,7 @@ from gridworld import *
 # from analyze import *
 
 if __name__ == '__main__':
-    #runtime = 100
+    # runtime = 100
     filename_state = 'state'
     filename_qtable = 'qtable'
     filename_results = 'results'

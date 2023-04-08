@@ -33,8 +33,9 @@ steps = []
 
 class GridWorld(Env):
     def __init__(self, number_of_robots, number_of_interestpoints, dim, observation_size):
+        print(f"observation_size: {observation_size}")
         super(GridWorld, self).__init__()
-        self.observation_shape = observation_size
+        self.observation_size = observation_size
 
         # Hyperparameters
         self.alpha = 0.3
@@ -488,6 +489,86 @@ class InterestPoint(Point):
 #
 #         return action
 
+# class Network(nn.Module):
+#     def __init__(self, observation_size, action_space_size):
+#         super().__init__()
+#
+#         self.conv1 = nn.Conv2d(observation_size[0], 32, kernel_size=8, stride=4)
+#         self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
+#         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
+#         self.fc1 = nn.Linear(self._get_conv_out_dim(observation_size), 512)
+#         self.fc2 = nn.Linear(512, action_space_size)
+#
+#     def forward(self, x):
+#         x = F.relu(self.conv1(x))
+#         x = F.relu(self.conv2(x))
+#         x = F.relu(self.conv3(x))
+#         x = x.view(x.size(0), -1)
+#         x = F.relu(self.fc1(x))
+#         return self.fc2(x)
+#
+#     def _get_conv_out_dim(self, shape):
+#         # Use a dummy tensor to compute the shape of the output tensor after the convolutional layers
+#         x = torch.zeros(1, *shape)
+#         x = F.relu(self.conv1(x))
+#         x = F.relu(self.conv2(x))
+#         x = F.relu(self.conv3(x))
+#         return x.view(x.size(0), -1).size(1)
+
+# class Network(nn.Module, GridWorld):
+#     def __init__(self, observation_size, action_space_size):
+#         super().__init__()
+#
+#         in_channels = 1
+#         out_channels1 = 16
+#         out_channels2 = 32
+#         kernel_size = 3
+#         stride = 1
+#         padding = 1
+#         pool_size = 2
+#
+#         self.conv1 = nn.Conv2d(in_channels, out_channels1, kernel_size=kernel_size, stride=stride, padding=padding)
+#         self.pool1 = nn.MaxPool2d(kernel_size=pool_size, stride=pool_size)
+#         self.conv2 = nn.Conv2d(out_channels1, out_channels2, kernel_size=kernel_size, stride=stride, padding=padding)
+#         self.pool2 = nn.MaxPool2d(kernel_size=pool_size, stride=pool_size)
+#
+#         # Compute the shape of the output tensor after the convolutional layers
+#         with torch.no_grad():
+#             self.conv_out_dim = self._get_conv_out_dim(observation_size)
+#
+#         self.fc1 = nn.Linear(self.conv_out_dim, 512)
+#         self.fc2 = nn.Linear(512, action_space_size)
+#
+#     def forward(self, x):
+#         x = nn.functional.relu(self.conv1(x.float()))
+#         x = self.pool1(x)
+#         x = nn.functional.relu(self.conv2(x))
+#         x = self.pool2(x)
+#         x = x.view(-1, self.conv_out_dim)
+#         x = nn.functional.relu(self.fc1(x))
+#         x = self.fc2(x)
+#
+#         return x
+#
+#     def _get_conv_out_dim(self, shape):
+#         # Use a dummy tensor to compute the shape of the output tensor after the convolutional layers
+#         x = torch.zeros(1, *shape[1:])
+#         x = nn.functional.relu(self.conv1(x))
+#         x = self.pool1(x)
+#         x = nn.functional.relu(self.conv2(x))
+#         x = self.pool2(x)
+#         return int(torch.prod(torch.tensor(x.shape)))
+
+# class Network(nn.Module):
+#     def __init__(self, observation_size, action_space_size):
+#         super().__init__()
+#
+#         self.conv1 = nn.Conv2d(observation_size[0], 32, kernel_size=8, stride=4)
+#         self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
+#         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
+#         self.fc1 = nn.Linear(self._get_conv_out_dim(observation_size), 512)
+#         self.fc2 = nn.Linear(512, action_space_size)
+
 class Network(nn.Module, GridWorld):
     def __init__(self, observation_size, action_space_size):
         super().__init__()
@@ -499,7 +580,7 @@ class Network(nn.Module, GridWorld):
         self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
 
-        self.fc1 = nn.Linear(32 * 8 * 8, 32)
+        self.fc1 = nn.Linear(32 * 8 * 8, 512)
         self.fc2 = nn.Linear(512, action_space_size)
 
     def forward(self, x):
@@ -514,28 +595,17 @@ class Network(nn.Module, GridWorld):
 
         return x
 
-    # def forward(self, x):
-    #     x = nn.functional.relu(self.conv1(x.float()))
-    #     x = self.pool1(x)
-    #     x = nn.functional.relu(self.conv2(x))
-    #     x = self.pool2(x)
-    #     x = x.view(x.size(0), -1)  # flatten the tensor
-    #     x = nn.functional.relu(self.fc1(x))
-    #     x = self.fc2(x.float())
-    #
-    #     return x
-
     def act(self, obs):
         if torch.cuda.is_available():
             device = torch.device('cuda:0')
         else:
             device = torch.device('cpu')
 
-        obs = np.expand_dims(obs, axis=0)
+        obs = np.expand_dims(obs, axis=0) # For numpy arrays
         obs_t = torch.as_tensor(obs, dtype=torch.float32).to(device)
 
-        q_values = self(obs_t.unsqueeze(0))
+        q_values = self(obs_t.unsqueeze(0)) # Add a batch dimension
         max_q_index = torch.argmax(q_values, dim=1)[0]
-        action = max_q_index.detach().item()
+        action_index = max_q_index.detach().item()
 
-        return action
+        return action_index
