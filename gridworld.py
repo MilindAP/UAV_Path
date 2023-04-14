@@ -568,6 +568,39 @@ class InterestPoint(Point):
 #         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
 #         self.fc1 = nn.Linear(self._get_conv_out_dim(observation_size), 512)
 #         self.fc2 = nn.Linear(512, action_space_size)
+# class Network(nn.Module, GridWorld):
+#     def __init__(self, observation_size, action_space_size):
+#         super().__init__()
+#         self.network = nn.sequential(
+#
+#             nn.Conv2(3, 32, kernel_size = 3, padding = 1),
+#             nn.ReLU(),
+#             nn.Conv2(3, 32, kernel_size=3, padding=1),
+#             nn.ReLU(),
+#             nn.MaxPool2d(2,2),
+#
+#             nn.Conv2(64, 128, kernel_size=3, padding=1),
+#             nn.ReLU(),
+#             nn.Conv2(128, 128, kernel_size=3, padding=1),
+#             nn.ReLU(),
+#             nn.MaxPool2d(2, 2),
+#
+#             nn.Conv2(128, 256, kernel_size=3, padding=1),
+#             nn.ReLU(),
+#             nn.Conv2(256, 256, kernel_size=3, padding=1),
+#             nn.ReLU(),
+#             nn.MaxPool2d(2, 2),
+#
+#             nn.Flatten(),
+#             nn.Linear(82944, 1024),
+#             nn.ReLU(),
+#             nn.Linear(1024, 512),
+#             nn.ReLU(),
+#             nn.Linear(512, 6)
+#         )
+#
+#     def forward(self, xb):
+#         return self.network(xb)
 
 class Network(nn.Module, GridWorld):
     def __init__(self, observation_size, action_space_size):
@@ -575,13 +608,16 @@ class Network(nn.Module, GridWorld):
 
         in_features = int(observation_size)
 
-        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
-        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
 
         self.fc1 = nn.Linear(32 * 8 * 8, 512)
         self.fc2 = nn.Linear(512, action_space_size)
+
+        for param in Network.parameters(self):
+            print(param)
 
     def forward(self, x):
 

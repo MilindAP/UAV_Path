@@ -20,7 +20,7 @@ if __name__ == '__main__':
     number_of_robots = 2
     number_of_interestpoints = 2
     dimension = 4
-    observation_size = (3, 84, 84)
+    observation_size = (3, 64, 64)
     env = GridWorld(number_of_robots, number_of_interestpoints, dimension, observation_size)
 
     number_of_episodes = 500
